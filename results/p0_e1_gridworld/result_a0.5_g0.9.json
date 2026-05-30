@@ -1,0 +1,19 @@
+{
+  "label": "a0.5_g0.9",
+  "config": {
+    "n_episodes": 3000,
+    "max_steps_per_episode": 200,
+    "alpha": 0.5,
+    "gamma": 0.9,
+    "epsilon_start": 1.0,
+    "epsilon_decay": 0.995,
+    "epsilon_min": 0.01
+  },
+  "eval": {
+    "mean_return": 0.0,
+    "std_return": 0.0,
+    "mean_steps": 1000.0
+  },
+  "success_rate": 0.0,
+  "passed": false
+}
