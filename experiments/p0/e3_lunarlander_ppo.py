@@ -30,7 +30,7 @@ import gymnasium as gym
 from rl_framework.agents.ppo import PPOAgent
 
 OUT_DIR        = Path("results/p0_e3_lunarlander_ppo")
-N_TRAIN_EPS    = 1000
+N_TRAIN_EPS    = 2000
 N_SEEDS        = 5
 PASS_THRESHOLD = 200.0
 EVAL_WINDOW    = 100   # rolling window for the acceptance criterion
@@ -41,16 +41,16 @@ EVAL_WINDOW    = 100   # rolling window for the acceptance criterion
 PPO_KWARGS = dict(
     obs_dim        = 8,
     n_actions      = 4,
-    n_steps        = 1024,
-    n_epochs       = 4,
-    minibatch_size = 128,
+    n_steps        = 512,
+    n_epochs       = 10,
+    minibatch_size = 64,
     clip_eps       = 0.2,
     gamma          = 0.99,
     gae_lambda     = 0.95,
     lr             = 3e-4,
     entropy_coeff  = 0.01,
     value_coeff    = 0.5,
-    hidden         = 128,
+    hidden         = 256,
 )
 
 
@@ -92,7 +92,7 @@ def _train_one_seed(seed: int) -> list[float]:
     for ep in range(N_TRAIN_EPS):
         ep_return = _run_episode(env, agent)
         returns.append(ep_return)
-        if (ep + 1) % 100 == 0:
+        if (ep + 1) % 200 == 0:
             recent = np.mean(returns[-EVAL_WINDOW:])
             print(f"    seed {seed}  ep {ep+1:>5}:  "
                   f"rolling-{EVAL_WINDOW} avg = {recent:7.1f}")
