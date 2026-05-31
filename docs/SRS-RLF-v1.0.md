@@ -16,6 +16,7 @@
 
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
+| 1.1 | 2026-05-31 | itej89 | Add Phase 1 requirements: ConnectFour env, MCTS, Arena |
 | 1.0 | 2026-05-30 | itej89 | Initial draft — Phase 0 scope |
 
 ---
@@ -219,6 +220,166 @@ Priority:   Critical
 Status:     Draft
 Rationale:  Each episode starts fresh; state from a previous episode must not
             leak into the next.
+```
+
+#### 3.2.2 Two-Player Game Environment Interface
+
+```
+RLF-ENV-020  Two-player game environments SHALL expose: reset() → board state,
+             step(action) → (next_state, reward, done, info), legal_actions() →
+             list[int], and current_player() → int (0 or 1).
+
+Priority:   Critical
+Status:     Approved
+Rationale:  MCTS and self-play loops need to know whose turn it is and which
+            moves are legal without inspecting board internals.
+```
+
+```
+RLF-ENV-021  reset() SHALL randomise which player moves first when
+             random_start=True (default False).
+
+Priority:   Low
+Status:     Approved
+Rationale:  Self-play training benefits from both players seeing both colours.
+```
+
+#### 3.2.3 ConnectFour Environment
+
+```
+RLF-CF-001  ConnectFour SHALL model a 6-row × 7-column board. Pieces fall to
+            the lowest empty row in the chosen column.
+
+Priority:   Critical
+Status:     Approved
+Rationale:  Official Connect Four rules; board shape determines all win-check logic.
+```
+
+```
+RLF-CF-002  ConnectFour SHALL detect wins horizontally, vertically, and along
+            both diagonals (\ and /). A win for the player who just moved SHALL
+            return reward=+1.0, done=True from step().
+
+Priority:   Critical
+Status:     Approved
+Rationale:  All four win directions must be checked; missing one is a silent bug.
+```
+
+```
+RLF-CF-003  A full board with no winner SHALL return reward=0.0, done=True (draw).
+
+Priority:   Critical
+Status:     Approved
+Rationale:  Draw is a valid terminal state; treating it as a win causes incorrect
+            MCTS backpropagation.
+```
+
+```
+RLF-CF-004  step() called with an illegal action (full column) SHALL raise
+            EnvironmentError.
+
+Priority:   High
+Status:     Approved
+Rationale:  Silent illegal moves corrupt board state silently; fail-fast is safer.
+```
+
+```
+RLF-CF-005  legal_actions() SHALL return exactly the columns that are not full,
+            in ascending column order.
+
+Priority:   Critical
+Status:     Approved
+Rationale:  MCTS expansion iterates legal_actions(); incorrect set causes invalid
+            tree branches.
+```
+
+```
+RLF-CF-006  render() SHALL return a human-readable string with '.' for empty,
+            'X' for player 0, 'O' for player 1, and column indices on the bottom
+            row.
+
+Priority:   Low
+Status:     Approved
+Rationale:  Debugging aid; exact format is not contractual but must be non-empty.
+```
+
+#### 3.2.4 MCTS — Monte Carlo Tree Search
+
+```
+RLF-MCTS-001  MCTSNode SHALL store: visit_count (N), total_value (W), children
+              dict mapping action→MCTSNode, and a reference to its parent.
+
+Priority:   Critical
+Status:     Approved
+Rationale:  UCB1, backprop, and best-child selection all require N and W; parent
+            pointer is needed for the backpropagation walk.
+```
+
+```
+RLF-MCTS-002  UCB1 selection SHALL use score = W/N + C·√(ln N_parent / N).
+              Unvisited children (N=0) SHALL always be selected before visited
+              ones (treated as score=+∞).
+
+Priority:   Critical
+Status:     Approved
+Rationale:  Standard UCB1 formula (Kocsis & Szepesvári, 2006); unvisited nodes
+            must be explored before exploitation begins.
+```
+
+```
+RLF-MCTS-003  Each simulation SHALL follow the sequence: selection → expansion
+              (add one unvisited child) → random rollout → backpropagation.
+
+Priority:   Critical
+Status:     Approved
+Rationale:  The four-phase structure is the defining property of MCTS; deviating
+            from it changes the algorithm's convergence properties.
+```
+
+```
+RLF-MCTS-004  Backpropagation SHALL negate the value at each step (value for
+              current player = -value for opponent) to correctly propagate
+              zero-sum outcomes.
+
+Priority:   Critical
+Status:     Approved
+Rationale:  Connect Four is zero-sum; a win for player 0 is a loss for player 1.
+            Without negation, both players maximise the same objective.
+```
+
+```
+RLF-MCTS-005  mcts_action(env, n_simulations, c) SHALL return the action
+              corresponding to the child of root with the highest visit count N.
+
+Priority:   Critical
+Status:     Approved
+Rationale:  Highest-N child is the standard MCTS policy (more robust than
+            highest-W/N which is noisier at low counts).
+```
+
+#### 3.2.5 Arena
+
+```
+RLF-ARENA-001  arena(agent_a, agent_b, env, n_games) SHALL play n_games games,
+               alternating which agent moves first each game, and return a dict
+               with keys wins_a, wins_b, draws.
+
+Priority:   High
+Status:     Approved
+Rationale:  Alternating first-move removes first-player advantage bias from
+            win-rate estimates.
+```
+
+```
+RLF-ARENA-002  MCTS(500 simulations) SHALL win ≥ 80% of 100 games against a
+               random agent. arena() SHALL complete those 100 games in under 60
+               seconds on a single CPU core.
+
+Priority:   High
+Status:     Approved
+Rationale:  Pure MCTS with random rollouts plateaus ~80-85% at 500 sims; ≥95%
+            requires a learned value function (Phase 1 E2). The 60s budget
+            makes iterative self-play training practical.
 ```
 
 #### 3.2.2 GridWorld Environment
